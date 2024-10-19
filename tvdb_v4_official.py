@@ -6,6 +6,10 @@ from http import HTTPStatus
 from urllib.error import HTTPError
 
 
+class InvalidAPIKey(Exception):
+    pass
+
+
 class Auth:
     def __init__(self, url, apikey, pin=""):
         loginInfo = {"apikey": apikey}
@@ -20,8 +24,10 @@ class Auth:
                 res = json.load(response)
                 self.token = res["data"]["token"]
         except HTTPError as e:
-            res = json.load(e)
-            raise Exception("Code:{}, {}".format(e, res["message"]))
+            if e.code == HTTPStatus.UNAUTHORIZED:
+                raise InvalidAPIKey("Invalid API key")
+            else:
+                raise e
 
     def get_token(self):
         return self.token
@@ -201,11 +207,17 @@ class TVDB:
         lang: str = None,
         meta=None,
         if_modified_since=None,
-        **kwargs
+        **kwargs,
     ) -> dict:
         """Returns a series episodes dictionary"""
         url = self.url.construct(
-            "series", id, "episodes/" + season_type, lang, page=page, meta=meta, **kwargs
+            "series",
+            id,
+            "episodes/" + season_type,
+            lang,
+            page=page,
+            meta=meta,
+            **kwargs,
         )
         return self.request.make_request(url, if_modified_since)
 
@@ -449,5 +461,5 @@ class TVDB:
 
     def get_user_favorites(self) -> dict:
         """Returns a user info dictionary"""
-        url = self.url.construct('user/favorites')
+        url = self.url.construct("user/favorites")
         return self.request.make_request(url)
